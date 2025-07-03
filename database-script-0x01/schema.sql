@@ -76,8 +76,8 @@ CREATE TABLE Property (
         FOREIGN KEY (host_id) REFERENCES User(user_id) 
         ON DELETE CASCADE ON UPDATE CASCADE,
     
-    CONSTRAINT fk_property_location 
-        FOREIGN KEY (location_id) REFERENCES Location(location_id) 
+    CONSTRAINT fk_property_location
+        FOREIGN KEY (location_id) REFERENCES Location(location_id)
         ON DELETE RESTRICT ON UPDATE CASCADE,
     
     -- Data Constraints

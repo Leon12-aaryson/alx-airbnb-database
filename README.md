@@ -15,6 +15,11 @@ alx-airbnb-database/
 ├── database-script-0x01/         # SQL schema implementation
 │   ├── schema.sql                # Complete database creation script
 │   └── README.md                 # Database implementation guide
+├── database-script-0x02/         # Sample data and database management
+│   ├── seed.sql                  # Comprehensive sample data script
+│   ├── test_queries.sql          # Database validation and test queries
+│   ├── manage_db.sh              # Automated database management script
+│   └── README.md                 # Sample data documentation
 ├── normalization.md              # Database normalization analysis (3NF)
 └── README.md                     # This main project documentation
 ```
@@ -89,18 +94,29 @@ alx-airbnb-database/
    cd alx-airbnb-database
    ```
 
-2. **Create the database:**
+2. **Create the database and schema:**
 
    ```bash
    mysql -u root -p < database-script-0x01/schema.sql
    ```
 
-3. **Verify installation:**
+3. **Populate with sample data (optional):**
 
-   ```sql
-   USE airbnb_db;
-   SHOW TABLES;
-   SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'airbnb_db';
+   ```bash
+   # Using the management script (recommended)
+   cd database-script-0x02
+   chmod +x manage_db.sh
+   ./manage_db.sh --seed-only
+
+   # Or manually
+   mysql -u root -p airbnb_db < database-script-0x02/seed.sql
+   ```
+
+4. **Verify installation:**
+
+   ```bash
+   # Validate database structure
+   mysql -u root -p airbnb_db < database-script-0x02/test_queries.sql
    ```
 
 ## Documentation
@@ -112,6 +128,16 @@ alx-airbnb-database/
 - **Summary**: `ERD/README.md` - Quick reference guide
 
 ### 🗄️ Database Implementation
+
+- **Schema**: `database-script-0x01/schema.sql` - Complete database creation
+- **Guide**: `database-script-0x01/README.md` - Implementation documentation
+
+### 📊 Sample Data & Testing
+
+- **Sample Data**: `database-script-0x02/seed.sql` - Realistic test data for all entities
+- **Test Queries**: `database-script-0x02/test_queries.sql` - Validation and performance testing
+- **Management Script**: `database-script-0x02/manage_db.sh` - Automated database operations
+- **Documentation**: `database-script-0x02/README.md` - Sample data guide
 
 - **Schema Script**: `database-script-0x01/schema.sql` - Complete SQL implementation
 - **Implementation Guide**: `database-script-0x01/README.md` - Detailed setup instructions
