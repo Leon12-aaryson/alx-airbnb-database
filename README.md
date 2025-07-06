@@ -20,6 +20,18 @@ alx-airbnb-database/
 │   ├── test_queries.sql          # Database validation and test queries
 │   ├── manage_db.sh              # Automated database management script
 │   └── README.md                 # Sample data documentation
+├── database-adv-script/          # Advanced SQL and optimization
+│   ├── joins_queries.sql         # Complex JOIN operations and examples
+│   ├── subqueries.sql            # Correlated and non-correlated subqueries
+│   ├── aggregations_and_window_functions.sql  # Advanced analytics queries
+│   ├── database_index.sql        # Strategic index implementation
+│   ├── index_performance.md      # Index optimization analysis
+│   ├── performance.sql           # Query optimization examples
+│   ├── optimization_report.md    # Query performance analysis
+│   ├── partitioning.sql          # Table partitioning implementation
+│   ├── partition_performance.md  # Partitioning performance analysis
+│   ├── performance_monitoring.md # Comprehensive performance monitoring
+│   └── README.md                 # Advanced SQL documentation
 ├── normalization.md              # Database normalization analysis (3NF)
 └── README.md                     # This main project documentation
 ```
