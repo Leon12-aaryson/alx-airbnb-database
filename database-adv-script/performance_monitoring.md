@@ -345,21 +345,25 @@ SHOW PROFILE FOR QUERY 1;
 ### Key Learnings from Analysis
 
 #### 1. **Index Strategy Impact**
+
 - **Covering indexes** eliminate multiple table lookups
-- **Ordered indexes** prevent filesort operations
+- **Ordered indexes** prevent filesort operations  
 - **Proper indexing** can improve performance by 90%+
 
 #### 2. **Query Design Principles**
+
 - **Limit result sets** with LIMIT clauses
 - **Select only necessary columns** to reduce I/O
 - **Use appropriate JOIN types** based on data requirements
 
 #### 3. **Monitoring Insights**
+
 - **EXPLAIN** reveals execution plan inefficiencies
 - **SHOW PROFILE** identifies time-consuming operations
 - **Performance Schema** provides detailed resource usage
 
 #### 4. **Optimization Priorities**
+
 1. **Eliminate full table scans** with proper indexes
 2. **Reduce filesort operations** with ordered indexes
 3. **Minimize data transfer** with selective column lists
