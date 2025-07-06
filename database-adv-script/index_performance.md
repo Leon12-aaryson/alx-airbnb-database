@@ -27,36 +27,43 @@ This document provides a comprehensive analysis of database indexing strategies 
 Based on common query patterns, the following columns were identified as high-usage:
 
 #### User Table
+
 - `email` - User authentication and lookups
 - `role` - User type filtering (guest, host, admin)
 - `created_at` - User registration analytics
 
 #### Property Table
+
 - `host_id` - Join operations with User table
 - `location_id` - Join operations with Location table
 - `pricepernight` - Price range filtering and sorting
 
 #### Booking Table
+
 - `user_id` - Join operations with User table
 - `property_id` - Join operations with Property table
 - `start_date`, `end_date` - Date range filtering
 - `status` - Booking status filtering
 
 #### Payment Table
+
 - `booking_id` - Join operations with Booking table
 - `payment_status` - Payment status filtering
 - `payment_date` - Temporal analysis and sorting
 
 #### Review Table
+
 - `property_id` - Join operations with Property table
 - `user_id` - Join operations with User table
 - `rating` - Rating-based filtering and sorting
 
 #### Location Table
+
 - `city`, `country` - Geographic filtering
 - `latitude`, `longitude` - Geospatial queries
 
 #### Message Table
+
 - `sender_id`, `recipient_id` - Join operations with User table
 - `sent_at` - Message chronology sorting
 
