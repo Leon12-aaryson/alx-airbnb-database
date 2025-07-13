@@ -10,6 +10,24 @@ USE airbnb_db;
 -- INDEX ANALYSIS AND STRATEGY
 -- =============================================
 
+-- IMPORTANT: PERFORMANCE MEASUREMENT INSTRUCTIONS
+-- =============================================
+-- To properly measure query performance before and after adding indexes:
+--
+-- 1. FIRST: Run the "BASELINE PERFORMANCE MEASUREMENT" queries (lines ~150-200)
+--    These use EXPLAIN ANALYZE to measure performance BEFORE indexes
+--
+-- 2. THEN: Create all the indexes in this script
+--
+-- 3. FINALLY: Run the "PERFORMANCE MEASUREMENT AFTER INDEX CREATION" queries (lines ~200-250)
+--    These use EXPLAIN ANALYZE to measure performance AFTER indexes
+--
+-- 4. COMPARE: The results will show execution time, rows examined, and other metrics
+--    to demonstrate the performance improvement from indexing
+--
+-- Note: EXPLAIN ANALYZE actually executes the query and provides real performance metrics,
+-- while EXPLAIN only shows the execution plan without running the query.
+
 -- Before creating indexes, let's analyze current query performance
 -- and identify high-usage columns
 
@@ -152,9 +170,14 @@ CREATE INDEX idx_user_segmentation ON User(created_at, role);
 -- =============================================
 
 -- Test index performance for common query patterns
+-- Note: Run these queries BEFORE creating indexes to establish baseline performance
+
+-- =============================================
+-- BASELINE PERFORMANCE MEASUREMENT (BEFORE INDEXES)
+-- =============================================
 
 -- 1. Property search by location and price range
-EXPLAIN SELECT p.property_id, p.name, p.pricepernight, l.city, l.country
+EXPLAIN ANALYZE SELECT p.property_id, p.name, p.pricepernight, l.city, l.country
 FROM Property p
 JOIN Location l ON p.location_id = l.location_id
 WHERE l.city = 'San Francisco' 
@@ -162,14 +185,14 @@ AND p.pricepernight BETWEEN 100 AND 300
 ORDER BY p.pricepernight;
 
 -- 2. User booking history
-EXPLAIN SELECT b.booking_id, b.start_date, b.end_date, b.status, p.name
+EXPLAIN ANALYZE SELECT b.booking_id, b.start_date, b.end_date, b.status, p.name
 FROM Booking b
 JOIN Property p ON b.property_id = p.property_id
 WHERE b.user_id = '550e8400-e29b-41d4-a716-446655440007'
 ORDER BY b.start_date DESC;
 
 -- 3. Property performance analytics
-EXPLAIN SELECT p.property_id, p.name, COUNT(b.booking_id) as bookings, AVG(r.rating) as avg_rating
+EXPLAIN ANALYZE SELECT p.property_id, p.name, COUNT(b.booking_id) as bookings, AVG(r.rating) as avg_rating
 FROM Property p
 LEFT JOIN Booking b ON p.property_id = b.property_id AND b.status = 'confirmed'
 LEFT JOIN Review r ON p.property_id = r.property_id
@@ -177,7 +200,7 @@ GROUP BY p.property_id, p.name
 ORDER BY bookings DESC;
 
 -- 4. Payment reporting
-EXPLAIN SELECT DATE(payment_date) as payment_day, 
+EXPLAIN ANALYZE SELECT DATE(payment_date) as payment_day, 
        SUM(amount) as daily_revenue,
        COUNT(*) as transaction_count
 FROM Payment
@@ -187,7 +210,58 @@ GROUP BY DATE(payment_date)
 ORDER BY payment_day;
 
 -- 5. Host performance query
-EXPLAIN SELECT h.user_id, h.first_name, h.last_name,
+EXPLAIN ANALYZE SELECT h.user_id, h.first_name, h.last_name,
+       COUNT(DISTINCT p.property_id) as properties,
+       COUNT(b.booking_id) as bookings,
+       SUM(pay.amount) as revenue
+FROM User h
+JOIN Property p ON h.user_id = p.host_id
+LEFT JOIN Booking b ON p.property_id = b.property_id
+LEFT JOIN Payment pay ON b.booking_id = pay.booking_id AND pay.payment_status = 'completed'
+WHERE h.role = 'host'
+GROUP BY h.user_id, h.first_name, h.last_name
+ORDER BY revenue DESC;
+
+-- =============================================
+-- PERFORMANCE MEASUREMENT AFTER INDEX CREATION
+-- =============================================
+-- Note: Run these queries AFTER creating all indexes to measure improvement
+
+-- 1. Property search by location and price range (AFTER INDEXES)
+EXPLAIN ANALYZE SELECT p.property_id, p.name, p.pricepernight, l.city, l.country
+FROM Property p
+JOIN Location l ON p.location_id = l.location_id
+WHERE l.city = 'San Francisco' 
+AND p.pricepernight BETWEEN 100 AND 300
+ORDER BY p.pricepernight;
+
+-- 2. User booking history (AFTER INDEXES)
+EXPLAIN ANALYZE SELECT b.booking_id, b.start_date, b.end_date, b.status, p.name
+FROM Booking b
+JOIN Property p ON b.property_id = p.property_id
+WHERE b.user_id = '550e8400-e29b-41d4-a716-446655440007'
+ORDER BY b.start_date DESC;
+
+-- 3. Property performance analytics (AFTER INDEXES)
+EXPLAIN ANALYZE SELECT p.property_id, p.name, COUNT(b.booking_id) as bookings, AVG(r.rating) as avg_rating
+FROM Property p
+LEFT JOIN Booking b ON p.property_id = b.property_id AND b.status = 'confirmed'
+LEFT JOIN Review r ON p.property_id = r.property_id
+GROUP BY p.property_id, p.name
+ORDER BY bookings DESC;
+
+-- 4. Payment reporting (AFTER INDEXES)
+EXPLAIN ANALYZE SELECT DATE(payment_date) as payment_day, 
+       SUM(amount) as daily_revenue,
+       COUNT(*) as transaction_count
+FROM Payment
+WHERE payment_status = 'completed'
+AND payment_date >= '2024-01-01'
+GROUP BY DATE(payment_date)
+ORDER BY payment_day;
+
+-- 5. Host performance query (AFTER INDEXES)
+EXPLAIN ANALYZE SELECT h.user_id, h.first_name, h.last_name,
        COUNT(DISTINCT p.property_id) as properties,
        COUNT(b.booking_id) as bookings,
        SUM(pay.amount) as revenue
@@ -267,6 +341,128 @@ ORDER BY p.pricepernight;
 SELECT /*+ IGNORE_INDEX(Booking, idx_booking_created_at) */
     COUNT(*) as total_bookings
 FROM Booking;
+
+-- =============================================
+-- ADDITIONAL PERFORMANCE MEASUREMENT QUERIES
+-- =============================================
+-- Focused on User, Booking, and Property tables as specified in requirements
+
+-- =============================================
+-- USER TABLE PERFORMANCE TESTS
+-- =============================================
+
+-- Test 1: User lookup by email (common authentication query)
+EXPLAIN ANALYZE SELECT user_id, first_name, last_name, role, created_at
+FROM User 
+WHERE email = 'john.doe@example.com';
+
+-- Test 2: Users by role with date filtering
+EXPLAIN ANALYZE SELECT user_id, first_name, last_name, email, created_at
+FROM User 
+WHERE role = 'host' 
+AND created_at >= '2023-01-01'
+ORDER BY created_at DESC;
+
+-- Test 3: User activity analysis
+EXPLAIN ANALYZE SELECT u.user_id, u.first_name, u.last_name, u.role,
+       COUNT(b.booking_id) as total_bookings,
+       MAX(b.created_at) as last_booking_date
+FROM User u
+LEFT JOIN Booking b ON u.user_id = b.user_id
+GROUP BY u.user_id, u.first_name, u.last_name, u.role
+ORDER BY total_bookings DESC;
+
+-- =============================================
+-- BOOKING TABLE PERFORMANCE TESTS
+-- =============================================
+
+-- Test 4: Booking search by date range and status
+EXPLAIN ANALYZE SELECT booking_id, user_id, property_id, start_date, end_date, status
+FROM Booking 
+WHERE start_date >= '2024-01-01' 
+AND end_date <= '2024-12-31'
+AND status = 'confirmed'
+ORDER BY start_date;
+
+-- Test 5: User's booking history with property details
+EXPLAIN ANALYZE SELECT b.booking_id, b.start_date, b.end_date, b.status,
+       p.name as property_name, p.pricepernight
+FROM Booking b
+JOIN Property p ON b.property_id = p.property_id
+WHERE b.user_id = '550e8400-e29b-41d4-a716-446655440007'
+ORDER BY b.start_date DESC;
+
+-- Test 6: Property booking statistics
+EXPLAIN ANALYZE SELECT p.property_id, p.name,
+       COUNT(b.booking_id) as total_bookings,
+       COUNT(CASE WHEN b.status = 'confirmed' THEN 1 END) as confirmed_bookings,
+       AVG(DATEDIFF(b.end_date, b.start_date)) as avg_stay_duration
+FROM Property p
+LEFT JOIN Booking b ON p.property_id = b.property_id
+GROUP BY p.property_id, p.name
+ORDER BY total_bookings DESC;
+
+-- =============================================
+-- PROPERTY TABLE PERFORMANCE TESTS
+-- =============================================
+
+-- Test 7: Property search by price range and location
+EXPLAIN ANALYZE SELECT p.property_id, p.name, p.pricepernight, l.city, l.country
+FROM Property p
+JOIN Location l ON p.location_id = l.location_id
+WHERE p.pricepernight BETWEEN 100 AND 300
+AND l.city = 'New York'
+ORDER BY p.pricepernight;
+
+-- Test 8: Host's property portfolio
+EXPLAIN ANALYZE SELECT p.property_id, p.name, p.pricepernight, l.city,
+       COUNT(b.booking_id) as total_bookings,
+       AVG(r.rating) as avg_rating
+FROM Property p
+JOIN Location l ON p.location_id = l.location_id
+LEFT JOIN Booking b ON p.property_id = b.property_id
+LEFT JOIN Review r ON p.property_id = r.property_id
+WHERE p.host_id = '550e8400-e29b-41d4-a716-446655440008'
+GROUP BY p.property_id, p.name, p.pricepernight, l.city
+ORDER BY total_bookings DESC;
+
+-- Test 9: Property availability check
+EXPLAIN ANALYZE SELECT p.property_id, p.name, p.pricepernight
+FROM Property p
+WHERE p.property_id NOT IN (
+    SELECT DISTINCT property_id 
+    FROM Booking 
+    WHERE status = 'confirmed'
+    AND start_date <= '2024-06-15'
+    AND end_date >= '2024-06-10'
+)
+AND p.pricepernight <= 200
+ORDER BY p.pricepernight;
+
+-- =============================================
+-- COMPLEX JOIN PERFORMANCE TESTS
+-- =============================================
+
+-- Test 10: Complete booking information with all related data
+EXPLAIN ANALYZE SELECT 
+    b.booking_id,
+    u.first_name as guest_name,
+    u.email as guest_email,
+    p.name as property_name,
+    h.first_name as host_name,
+    l.city, l.country,
+    b.start_date, b.end_date,
+    b.status,
+    pay.amount,
+    pay.payment_status
+FROM Booking b
+JOIN User u ON b.user_id = u.user_id
+JOIN Property p ON b.property_id = p.property_id
+JOIN User h ON p.host_id = h.user_id
+JOIN Location l ON p.location_id = l.location_id
+LEFT JOIN Payment pay ON b.booking_id = pay.booking_id
+WHERE b.status = 'confirmed'
+ORDER BY b.start_date DESC;
 
 -- =============================================
 -- BENCHMARK QUERIES FOR PERFORMANCE TESTING

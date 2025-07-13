@@ -11,8 +11,11 @@ USE airbnb_db;
 -- =============================================
 -- Retrieve all bookings with complete details including user info,
 -- property details, location, host information, and payment status
+-- This is the initial query that will be analyzed and optimized
 
--- Version 1: Initial Query (Not Optimized)
+-- INITIAL QUERY: Comprehensive Booking Details (Not Optimized)
+-- This query retrieves all bookings with user details, property details, and payment details
+-- as specified in the requirements
 SELECT 
     b.booking_id,
     b.start_date,
@@ -88,8 +91,73 @@ ORDER BY b.created_at DESC, b.booking_id;
 -- PERFORMANCE ANALYSIS OF INITIAL QUERY
 -- =============================================
 
--- Analyze the initial query performance
+-- STEP 1: Analyze the initial query performance using EXPLAIN
+-- This shows the execution plan without running the query
 EXPLAIN FORMAT=JSON
+SELECT 
+    b.booking_id,
+    b.start_date,
+    b.end_date,
+    b.status as booking_status,
+    u.first_name as guest_first_name,
+    u.last_name as guest_last_name,
+    p.name as property_name,
+    p.pricepernight,
+    h.first_name as host_first_name,
+    h.last_name as host_last_name,
+    l.city,
+    l.country,
+    pay.amount as payment_amount,
+    pay.payment_status,
+    (SELECT COUNT(*) FROM Booking b2 WHERE b2.user_id = u.user_id) as guest_total_bookings,
+    (SELECT AVG(rating) FROM Review r WHERE r.property_id = p.property_id) as property_avg_rating
+FROM Booking b
+    LEFT JOIN User u ON b.user_id = u.user_id
+    LEFT JOIN Property p ON b.property_id = p.property_id
+    LEFT JOIN User h ON p.host_id = h.user_id
+    LEFT JOIN Location l ON p.location_id = l.location_id
+    LEFT JOIN Payment pay ON b.booking_id = pay.booking_id
+WHERE b.created_at >= '2024-01-01'
+ORDER BY b.created_at DESC;
+
+-- STEP 2: Analyze the initial query performance using EXPLAIN ANALYZE
+-- This actually runs the query and provides detailed performance metrics
+EXPLAIN ANALYZE
+SELECT 
+    b.booking_id,
+    b.start_date,
+    b.end_date,
+    b.status as booking_status,
+    u.first_name as guest_first_name,
+    u.last_name as guest_last_name,
+    p.name as property_name,
+    p.pricepernight,
+    h.first_name as host_first_name,
+    h.last_name as host_last_name,
+    l.city,
+    l.country,
+    pay.amount as payment_amount,
+    pay.payment_status,
+    (SELECT COUNT(*) FROM Booking b2 WHERE b2.user_id = u.user_id) as guest_total_bookings,
+    (SELECT AVG(rating) FROM Review r WHERE r.property_id = p.property_id) as property_avg_rating
+FROM Booking b
+    LEFT JOIN User u ON b.user_id = u.user_id
+    LEFT JOIN Property p ON b.property_id = p.property_id
+    LEFT JOIN User h ON p.host_id = h.user_id
+    LEFT JOIN Location l ON p.location_id = l.location_id
+    LEFT JOIN Payment pay ON b.booking_id = pay.booking_id
+WHERE b.created_at >= '2024-01-01'
+ORDER BY b.created_at DESC
+LIMIT 50;  -- Added LIMIT for performance testing
+
+-- STEP 3: Identify specific inefficiencies in the initial query
+-- The analysis above will reveal:
+-- 1. Multiple table scans due to correlated subqueries
+-- 2. Inefficient JOIN order
+-- 3. Missing or unused indexes
+-- 4. Temporary table creation for sorting
+-- 5. Excessive memory usage
+-- 6. Long execution time due to complex operations
 SELECT 
     b.booking_id,
     b.start_date,
@@ -119,12 +187,33 @@ ORDER BY b.created_at DESC;
 -- =============================================
 -- OPTIMIZATION STRATEGY
 -- =============================================
+-- Based on the EXPLAIN and EXPLAIN ANALYZE results, we will refactor the query
+-- to reduce execution time by addressing the following inefficiencies:
 
 -- 1. Remove unnecessary columns and subqueries
--- 2. Use window functions instead of correlated subqueries
+--    - Eliminate correlated subqueries that cause multiple table scans
+--    - Select only essential columns instead of all columns
+--    - Use window functions for aggregate calculations
+
+-- 2. Optimize JOIN operations
+--    - Change LEFT JOINs to INNER JOINs where appropriate
+--    - Reduce the number of JOINs by combining related data
+--    - Use proper JOIN order for optimal performance
+
 -- 3. Add proper WHERE clauses to reduce data set
+--    - Filter data early in the query execution
+--    - Use indexed columns in WHERE clauses
+--    - Add result limiting with LIMIT clause
+
 -- 4. Use appropriate indexes
+--    - Ensure indexes exist for JOIN, WHERE, and ORDER BY columns
+--    - Use covering indexes to avoid table lookups
+--    - Consider composite indexes for multi-column filtering
+
 -- 5. Consider denormalization for frequently accessed data
+--    - Pre-calculate frequently used values
+--    - Use temporary tables for complex aggregations
+--    - Implement materialized views for complex queries
 
 -- =============================================
 -- OPTIMIZED QUERY VERSION 1
@@ -362,30 +451,98 @@ WHERE b.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
 ORDER BY b.start_date DESC;
 
 -- =============================================
--- PERFORMANCE COMPARISON QUERIES
+-- PERFORMANCE COMPARISON: BEFORE vs AFTER
 -- =============================================
+-- This section demonstrates the performance improvement achieved through optimization
 
--- Test query performance with different approaches
-SET @start_time = NOW(6);
+-- MEASURE INITIAL QUERY PERFORMANCE (BEFORE OPTIMIZATION)
+SET @start_time_initial = NOW(6);
 
--- Run optimized query
+-- Run the initial complex query
 SELECT COUNT(*) FROM (
     SELECT 
         b.booking_id,
+        b.start_date,
+        b.end_date,
+        b.status as booking_status,
+        u.first_name as guest_first_name,
+        u.last_name as guest_last_name,
+        p.name as property_name,
+        p.pricepernight,
+        h.first_name as host_first_name,
+        h.last_name as host_last_name,
+        l.city,
+        l.country,
+        pay.amount as payment_amount,
+        pay.payment_status,
+        (SELECT COUNT(*) FROM Booking b2 WHERE b2.user_id = u.user_id) as guest_total_bookings,
+        (SELECT AVG(rating) FROM Review r WHERE r.property_id = p.property_id) as property_avg_rating
+    FROM Booking b
+        LEFT JOIN User u ON b.user_id = u.user_id
+        LEFT JOIN Property p ON b.property_id = p.property_id
+        LEFT JOIN User h ON p.host_id = h.user_id
+        LEFT JOIN Location l ON p.location_id = l.location_id
+        LEFT JOIN Payment pay ON b.booking_id = pay.booking_id
+    WHERE b.created_at >= '2024-01-01'
+    ORDER BY b.created_at DESC
+    LIMIT 50
+) as initial_result;
+
+SET @end_time_initial = NOW(6);
+
+-- MEASURE OPTIMIZED QUERY PERFORMANCE (AFTER OPTIMIZATION)
+SET @start_time_optimized = NOW(6);
+
+-- Run the optimized query
+SELECT COUNT(*) FROM (
+    SELECT 
+        b.booking_id,
+        b.start_date,
+        b.end_date,
+        b.status as booking_status,
         CONCAT(u.first_name, ' ', u.last_name) as guest_name,
         p.name as property_name,
-        l.city
+        p.pricepernight,
+        CONCAT(h.first_name, ' ', h.last_name) as host_name,
+        CONCAT(l.city, ', ', l.country) as location,
+        pay.amount as payment_amount,
+        pay.payment_status,
+        (DATEDIFF(b.end_date, b.start_date) * p.pricepernight) as total_cost
     FROM Booking b
         INNER JOIN User u ON b.user_id = u.user_id
         INNER JOIN Property p ON b.property_id = p.property_id
+        INNER JOIN User h ON p.host_id = h.user_id
         INNER JOIN Location l ON p.location_id = l.location_id
-    WHERE b.status = 'confirmed'
-        AND b.created_at >= '2024-01-01'
+        LEFT JOIN Payment pay ON b.booking_id = pay.booking_id
+    WHERE b.created_at >= '2024-01-01'
+        AND b.status IN ('confirmed', 'pending')
+    ORDER BY b.created_at DESC
+    LIMIT 50
 ) as optimized_result;
 
-SET @end_time = NOW(6);
-SELECT 'Optimized Query Time: ' as label, 
-       TIMESTAMPDIFF(MICROSECOND, @start_time, @end_time) as execution_time_microseconds;
+SET @end_time_optimized = NOW(6);
+
+-- DISPLAY PERFORMANCE COMPARISON RESULTS
+SELECT 
+    'Initial Query (Before Optimization)' as query_type,
+    TIMESTAMPDIFF(MICROSECOND, @start_time_initial, @end_time_initial) as execution_time_microseconds,
+    'Complex query with correlated subqueries and multiple LEFT JOINs' as description
+UNION ALL
+SELECT 
+    'Optimized Query (After Optimization)' as query_type,
+    TIMESTAMPDIFF(MICROSECOND, @start_time_optimized, @end_time_optimized) as execution_time_microseconds,
+    'Simplified query with INNER JOINs and eliminated subqueries' as description;
+
+-- CALCULATE PERFORMANCE IMPROVEMENT
+SELECT 
+    CONCAT(
+        ROUND(
+            (TIMESTAMPDIFF(MICROSECOND, @start_time_initial, @end_time_initial) - 
+             TIMESTAMPDIFF(MICROSECOND, @start_time_optimized, @end_time_optimized)) * 100.0 / 
+            TIMESTAMPDIFF(MICROSECOND, @start_time_initial, @end_time_initial), 2
+        ), '%'
+    ) as performance_improvement,
+    'Performance improvement achieved through optimization' as description;
 
 -- =============================================
 -- QUERY OPTIMIZATION RECOMMENDATIONS
